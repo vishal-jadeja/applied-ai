@@ -4,14 +4,35 @@ Answer aloud from memory first; then write the model answer. Grown per stage of 
 
 ## Foundations
 
+**Q: Prompt is 195k tokens, context window is 200k — what breaks?**
+A: Input and output share one budget. Only ~5k tokens remain for the answer, so the response truncates mid-generation; push input past 200k and the API rejects the call outright. A large input starves the output — this is a *capacity* failure, distinct from lost-in-the-middle, which is a *quality* failure at long context.
+
+**Q: How does the model "remember" earlier messages in a chat?**
+A: It doesn't. The model is stateless between calls. The harness resends the entire prior transcript on every request — "memory" is re-injected context, not model state. This is also why long conversations get slower and pricier per turn, and why history eventually has to be summarized or truncated.
+
 **Q: Why is output pricing higher than input pricing on every provider?**
 A: Prefill (input) processes all tokens in parallel — one pass, compute-bound, cheap per token. Decode (output) generates autoregressively — one token per forward pass, memory-bandwidth-bound, holds the KV cache the whole time. Output tokens cost real serial GPU time; input tokens amortize.
+
+**Q: Two calls, same total tokens — 5000-in/100-out vs 100-in/5000-out. Which costs more and which is slower?**
+A: The output-heavy call loses on both. Cost: its 5000 tokens are billed at the 3–5× output rate vs the cheap input rate. Speed: those 5000 output tokens decode serially (5000 forward passes), while 5000 input tokens prefill in one parallel pass. Same reason for both — output is serial + memory-bound, input is parallel + compute-bound.
+
+**Q: Why does chat cost climb faster than linearly as conversations grow?**
+A: Every turn resends the entire transcript, so each turn's input cost rises with conversation length — total is the sum of a growing series, i.e. quadratic. Not "same cost per turn × more turns"; each turn itself gets pricier. Fix: summarize or window old turns so resent input stays bounded.
+
+**Q: One lever to cut both cost and latency the most?**
+A: Reduce output tokens. Output is the expensive side of both ledgers — 3–5× the price and the serial-decode bottleneck that dominates latency. Trimming input helps cost and TTFT but pays off less because input is cheap and parallel. Cap max_tokens, request concise/structured output.
 
 **Q: What's context engineering vs prompt engineering?**
 A: Prompt engineering = wording one message. Context engineering = deciding what earns a place in the window at all: system instructions, retrieved chunks, memory, tool results, history — selection, ordering, compression, caching. Production quality lives here; a long context is not a strategy, it's a cost.
 
 **Q: Temperature 0 — deterministic?**
 A: Mostly greedy but not guaranteed deterministic: floating-point non-associativity across batch layouts, hardware, and provider-side changes produce variance. Never build correctness on "temp 0 = same answer"; build validation instead.
+
+**Q: Top-k vs top-p — what's the real difference and why is top-p preferred?**
+A: Top-k keeps a fixed *count* of the highest-probability tokens; top-p keeps a fixed *probability mass* (smallest set with cumulative prob ≥ p), so its count varies with the model's confidence — few tokens when it's sure, many when it's torn. Top-k drags in junk when the model is confident and cuts valid tokens when it's uncertain. That adaptivity is why top-p won.
+
+**Q: You need a step that emits valid JSON tool args every time. Sampling settings?**
+A: Temperature 0 (or the provider's floor), top-p left at default. Cold = deterministic, so no creative drift in the structure; tuning both temperature and top-p is pointless and compounds randomness. Pair it with schema validation and a repair loop — never rely on sampling alone for correctness (temp 0 isn't guaranteed identical).
 
 ## Structured outputs + tools
 
