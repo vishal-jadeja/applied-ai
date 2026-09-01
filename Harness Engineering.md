@@ -4,8 +4,6 @@ aliases: [Harness Engineering]
 
 # Harness Engineering
 
-Part of [[AI-Learning]].
-
 ## What it is
 Designing the scaffolding an LLM agent runs inside — the tools, permissions, context management, and control flow around the model — as opposed to the model itself. "Harness" = everything between the raw LLM call and the finished agent (tool definitions, sandboxing, retry/error handling, memory/context injection, permission prompts).
 
