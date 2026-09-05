@@ -7,8 +7,10 @@ Obsidian markdown, Mermaid diagrams inline.
 ## Layout
 
 ```
-Applied AI.md       hub / index
-<concept>.md        one note per concept
+Applied AI.md            hub / index
+PLAN.md                  10-stage concept plan (P0→P2), what to learn in what order
+INTERVIEW-QUESTIONS.md   checkpoint bank, one section per stage
+<concept>.md             deep-dive note, only when a concept outgrows a PLAN checkbox
 ```
 
 ## Method

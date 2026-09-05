@@ -34,6 +34,20 @@ A: Top-k keeps a fixed *count* of the highest-probability tokens; top-p keeps a 
 **Q: You need a step that emits valid JSON tool args every time. Sampling settings?**
 A: Temperature 0 (or the provider's floor), top-p left at default. Cold = deterministic, so no creative drift in the structure; tuning both temperature and top-p is pointless and compounds randomness. Pair it with schema validation and a repair loop — never rely on sampling alone for correctness (temp 0 isn't guaranteed identical).
 
+## Prompt engineering
+
+**Q: Your few-shot examples made output worse. Why?**
+A: Usual causes: examples too similar to each other, so the model anchors on surface format instead of the task; ordering/recency bias pulling toward the last example; examples that quietly contradict the instructions; and over-copying — the model reproduces example phrasing on inputs that need different handling. Fix by choosing examples that span the decision boundary (including the edge cases you actually get wrong), keeping format identical across them, and tuning the count against an eval set rather than by feel.
+
+**Q: Should you use chain-of-thought on a reasoning model?**
+A: No — it's redundant and can hurt. Reasoning models already generate internal reasoning; "think step by step" burns tokens and can constrain a better internal path. Give goal, constraints, and success criteria instead, and control depth with the thinking budget. CoT prompting still earns its keep on non-reasoning models for multi-step arithmetic and logic.
+
+**Q: How do you version prompts?**
+A: Prompts live in the repo like code — reviewed, diffed, tagged with an ID + version. Every trace logs the prompt version, so a quality regression is attributable to a specific change. Changes ship behind a flag and must pass the eval set in CI. Prompt text stored loose in a DB or pasted into a console is untraceable, and "it feels better" is not a merge criterion.
+
+**Q: Why do negative instructions ("don't be verbose") work badly?**
+A: They specify the complement of a huge space and still put the unwanted concept in context. Positive, concrete constraints ("answer in at most 3 sentences") give a target the model can hit and you can measure. Same reason instruction–data separation matters: state what to do with the data, and tag the data so it never reads as instruction.
+
 ## Structured outputs + tools
 
 **Q: Design a robust tool-calling contract.**
@@ -65,6 +79,24 @@ A: Known workflow → fixed pipeline: cheaper, deterministic, testable. Agents p
 **Q: Fine-tuning vs RAG vs ICL vs distillation — how do you choose?**
 A: By what's missing. Knowledge missing/changing → RAG (updatable, attributable). Behavior/format/style missing → fine-tune (but you now own evals, retraining, drift). Few examples suffice → ICL/few-shot (try first, always). Cost/latency too high on a working system → distill to a smaller model. Classic wrong tool: fine-tuning to inject facts — it's lossy, unattributable, stale on day one.
 
+## Memory, MCP, multi-agent
+
+**Q: When is multi-agent actually better than one agent with more tools?**
+A: Three real reasons: context isolation (a noisy subtask would poison the main window), genuinely parallel independent subtasks, and different permission scopes per role. Costs are real — coordination overhead, compounding errors across handoffs, higher latency, and evals that are much harder to attribute. Default to a single agent with well-described tools; split only when one of those three reasons applies.
+
+## Application layer
+
+**Q: How do you stream a response that must also be valid structured output?**
+A: The tension is that schema validation needs the whole document. Options: split the call — stream the prose the user reads, produce the structured payload separately; use an incremental JSON parser and only commit whole fields; or order the schema so user-visible fields come first. Never render partial JSON as if it were final, and never fire side effects on unvalidated partial output.
+
+**Q: You retry a failed agent step. What breaks?**
+A: Non-idempotent tools fire twice — the email sends again, the row inserts twice. The failure often happened after the side effect, on the response path. Fix: idempotency keys per tool call, a journal of executed call IDs checked before re-execution, and retries only on classified-retryable errors. Separately, retry storms need exponential backoff with jitter or you DDoS the provider and yourself.
+
+## Multimodal + extraction
+
+**Q: OCR pipeline or a vision model for document extraction?**
+A: OCR + layout parsing is deterministic, cheap, and gives you bounding boxes — provenance you can audit — but breaks on messy layouts, handwriting, and implicit structure. A VLM handles those and understands context, but invents plausible values and gives no source span. Production answer is hybrid: OCR for text ground truth, VLM for structure and interpretation, every extracted field validated back against the source text, plus a confidence threshold routing low-confidence documents to human review.
+
 ## Inference stack
 
 **Q: Explain prefill vs decode and one optimization for each.**
@@ -83,3 +115,11 @@ A: Assume retrieved/tool content is adversarial. Layers: privilege separation (m
 
 **Q: Multi-tenant LLM app — what leaks and how do you prevent it?**
 A: Vectors: shared retrieval index without tenant filters (worst), prompt/semantic caches keyed without tenant ID, conversation memory bleeding across users, fine-tuned models memorizing tenant data. Prevention: tenant ID mandatory in every retrieval filter and cache key, per-tenant encryption where required, contamination tests in CI (query tenant A for tenant B's known-unique strings).
+
+## Fine-tuning & data
+
+**Q: You fine-tuned and quality got worse. What are the likely causes?**
+A: In rough order: too few or inconsistent examples (quality beats volume — a few hundred clean ones beat thousands of noisy); catastrophic forgetting of general instruction-following, especially at a high learning rate or too many epochs; a prompt format at inference that differs from training; and the classic wrong-tool case — fine-tuning to inject knowledge, which belongs in RAG. Also check eval leakage: if training data overlaps the eval set, offline numbers rise while production drops.
+
+**Q: Cheapest fine-tune that usually pays off?**
+A: Fine-tuning the embedding model on your domain, not the generator. Retrieval quality caps the whole RAG pipeline, the training set can be mined from existing query–document pairs, and it's small and cheap to retrain. Most "the model is dumb" complaints in a RAG system are retrieval misses.
