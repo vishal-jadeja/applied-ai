@@ -13,7 +13,7 @@ Checkpoint after each stage: matching section in [INTERVIEW-QUESTIONS.md](INTERV
 - [ ] Reasoning vs non-reasoning models: extended thinking, thinking budgets, when reasoning models are the wrong (slow, expensive) tool
 - [ ] Harness engineering vs prompt engineering — the system around the model ([Harness Engineering.md](Harness%20Engineering.md))
 - [ ] Nondeterminism: why temp 0 still varies, and building on validation instead
-- Resources: [Anthropic — Building Effective Agents](https://anthropic.com/research/building-effective-agents), Context Engineering survey (arXiv)
+- Resources: [Anthropic — Building Effective Agents](https://anthropic.com/research/building-effective-agents), Context Engineering survey (arXiv), [loop & harness engineering](https://youtu.be/3uO6V05LBjU)
 
 ## Stage 2 — Prompt engineering `P0`
 
@@ -58,21 +58,27 @@ Checkpoint after each stage: matching section in [INTERVIEW-QUESTIONS.md](INTERV
 - [ ] Citations and grounding: attributing answers to source spans, abstaining when retrieval is weak
 - [ ] Agentic RAG — when retrieval becomes a tool the model drives, query rewriting, re-query loops
 - [ ] GraphRAG / structured retrieval — when relationships beat similarity
-- Resources: [Weaviate — Intro to RAG](https://weaviate.io/blog/introduction-to-rag), [Agentic RAG](https://weaviate.io/blog/what-is-agentic-rag)
+- Resources: [Weaviate — Intro to RAG](https://weaviate.io/blog/introduction-to-rag), [Agentic RAG](https://weaviate.io/blog/what-is-agentic-rag), [RAG explained](https://youtu.be/X0btK9X0Xnk), [RAG frameworks compared](https://florinelchis.medium.com/top-10-rag-frameworks-on-github-by-stars-january-2026-e6edff1e0d91)
 
 ## Stage 5 — Evals `P0`
 
 *Before agents on purpose — evals gate everything after. #1 differentiator in 2026 loops.*
 
+- [ ] The vocabulary (Anthropic's): **task** (test case + success criteria) → **trial** (one execution) → **transcript** (what happened) → **outcome** (what changed in the world) → **grader** (pass/fail judgment); eval **harness** runs it, eval **suite** groups tasks by capability
+- [ ] Grader types: code-based (exact match, regex, DB/API state, schema checks — cheap, rigid) vs model-based (rubrics, pairwise, reference-based — flexible, biased) vs human (calibrates the other two) — complementary, not either/or
+- [ ] Capability evals (what can it do — hard tasks, headroom) vs regression evals (did something break — should pass ~always); maintain both
+- [ ] pass@k vs pass^k: "can eventually solve" vs "solves consistently" — which one your product actually needs
+- [ ] Suite design: start with 20–50 realistic tasks from real failures; test "should do X" AND "should NOT do X" (don't reward over-triggering); grade outcomes, not rigid step sequences
 - [ ] Golden sets, regression tests, adversarial tests
 - [ ] LLM-as-judge: setup, rubric design, calibration against human labels, judge bias and drift
 - [ ] Retrieval evals: recall, precision, grounding, attribution, citation quality
 - [ ] Task evals: exact match, semantic similarity, structured-field accuracy — picking the metric that matches the failure you fear
 - [ ] Online vs offline: shadow runs, A/B, production traffic sampled back into the golden set
-- [ ] Human feedback loops: explicit ratings vs implicit signals, routing them into datasets
+- [ ] Human feedback loops: explicit ratings vs implicit signals (retries, corrections, escalations, abandonment), routing them into datasets
+- [ ] Feedback isn't ground truth — a thumbs-down can mean wrong answer, wrong retrieval, bad UX, or user misunderstanding; the loop is feedback → failure analysis → root cause → fix → **new eval** → regression protection
 - [ ] Silent eval regressions — why they're the scariest failure mode
 - [ ] Evals in CI: gating deploys on prompt/model/index changes
-- Resources: [LangSmith docs](https://docs.smith.langchain.com), [Ragas](https://docs.ragas.io)
+- Resources: [LangSmith docs](https://docs.smith.langchain.com), [Ragas](https://docs.ragas.io), [LLM evaluation course](https://youtu.be/6W92_t9FveA)
 
 ## Stage 6 — Agents `P0`
 
@@ -101,7 +107,7 @@ Checkpoint after each stage: matching section in [INTERVIEW-QUESTIONS.md](INTERV
 
 - [ ] Memory systems: short-term buffers, long-term vector recall, context compression ([Letta](https://letta.com))
 - [ ] What carries forward per turn vs is re-fetched vs dropped — and how compaction loses things
-- [ ] MCP: what it standardizes, tool discovery, server/client split ([modelcontextprotocol.io](https://modelcontextprotocol.io))
+- [ ] MCP: what it standardizes, tool discovery, server/client split ([modelcontextprotocol.io](https://modelcontextprotocol.io), [MCP playlist](https://youtube.com/playlist?list=PLKnIA16_Rmva_oZ9F4ayUu9qcWgF7Fyc0))
 - [ ] Multi-agent: LangGraph, supervisor patterns, handoffs, when multi-agent is over-engineering ([LangGraph docs](https://docs.langchain.com/oss/python/langgraph/overview))
 - [ ] Topology choice: sequential pipeline vs orchestrator/worker vs debate — and when a pipeline is not really multi-agent at all
 - [ ] Context isolation as the real reason to spawn a subagent
@@ -134,6 +140,8 @@ Checkpoint after each stage: matching section in [INTERVIEW-QUESTIONS.md](INTERV
 - [ ] Quantization: INT8/INT4/FP8, AWQ, GPTQ — when it hurts quality
 - [ ] Speculative decoding vs quantization vs distillation trade-offs
 - [ ] Prompt caching vs semantic caching — hit-rate design, invalidation, cache-key safety
+- [ ] The full caching taxonomy: response cache (exact + semantic), embedding cache (don't re-embed unchanged docs), retrieval cache, external-API cache — and why the real question is never "can we cache this" but "**when does it become invalid**" (stale/mis-scoped caches are correctness and security bugs)
+- [ ] LLM gateway pattern: one unified API over providers — routing, fallbacks, load balancing, cost tracking, per-key budgets ([LiteLLM](https://docs.litellm.ai), [gateway walkthrough](https://youtu.be/RN3baOpNA6w))
 - [ ] Model routing, graceful fallback, degraded-mode UX
 - [ ] Model deprecation & versioning: provider lifecycles, pinning vs floating versions, migration paths and re-eval on switch — DepLyx's core feature
 
@@ -141,13 +149,15 @@ Checkpoint after each stage: matching section in [INTERVIEW-QUESTIONS.md](INTERV
 
 *→ build ai-projects #5*
 
-- [ ] Traces, spans, tokens, latency, errors, drift as first-class discipline ([OTel GenAI semconv](https://opentelemetry.io/docs/specs/semconv/gen-ai/))
+- [ ] Traces, spans, tokens, latency, errors, drift as first-class discipline ([OTel GenAI semconv](https://opentelemetry.io/docs/specs/semconv/gen-ai/), [tracing with Arize](https://youtu.be/fHGSxOhWO-g))
+- [ ] What to capture per trace stage: latency (p50/p95/p99), cost (input/output tokens), quality (eval scores, feedback), RAG signals (retrieved docs, similarity scores, context size), versions (model/prompt/retrieval) — so "quality dropped 90→75%" is answerable, not mysterious
+- [ ] Guardrails architecture: input rails (injection/PII detection, validation, authn/authz) → LLM → output rails (schema, safety, policy checks); the model **proposes**, deterministic business rules **enforce** (e.g. LLM says "refund ₹50k", hard cap says "max ₹10k automated → human approval")
 - [ ] Prompt injection defense — direct and indirect; privilege separation as the only boundary that holds
 - [ ] Jailbreaks, content moderation, refusal handling and over-refusal as a product bug
 - [ ] Multi-tenant isolation, cache safety, cross-user contamination
 - [ ] PII redaction, data retention/training-opt-out, sandboxed execution
 - [ ] Output-side risk: unsafe code execution, SSRF via tool calls, exfiltration through rendered links
-- Resources: [OWASP Top 10 for LLM Apps](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
+- Resources: [OWASP Top 10 for LLM Apps](https://owasp.org/www-project-top-10-for-large-language-model-applications/), [AI guardrails & security masterclass](https://youtu.be/rQE3w8Qjx98), [LLMOps intro](https://youtu.be/NuWRAiYnjxw)
 
 ## Stage 13 — Fine-tuning & data `P2`
 
@@ -167,6 +177,18 @@ Checkpoint after each stage: matching section in [INTERVIEW-QUESTIONS.md](INTERV
 - [ ] vLLM / SGLang serving internals ([vLLM docs](https://docs.vllm.ai))
 - [ ] GPU basics for inference: VRAM math, batch size, why a 70B won't fit where you think
 - [ ] Reference builds: [ai-engineering-hub](https://github.com/patchy631/ai-engineering-hub)
+
+## Stage 15 — Tooling & model landscape `P1` *(interleave anytime — no dependencies)*
+
+*Fluency, not depth. FDE interviews probe "what's out there and when would you pick it"; using these daily is the fastest way to have opinions.*
+
+- [ ] Agentic coding tools: Claude Code / Cursor / Codex — what a coding agent's harness actually does; use one for every build in this plan ([agentic coding with Claude Code](https://youtu.be/K_KIQA849cs))
+- [ ] Open vs closed models: the current landscape (Llama, Qwen, DeepSeek, Mistral, Gemma) — licensing, capability tiers, when self-hosting wins
+- [ ] Hugging Face ecosystem: Hub, models/tasks/datasets, inference SDK — enough to find and run any open model
+- [ ] Local inference: Ollama / LM Studio — run a small model locally once, understand quantized GGUF tradeoffs
+- [ ] Provider API landscape: OpenAI-compatible APIs as the de-facto wire format, OpenRouter-style aggregators, choosing a provider (capability, latency, data policy, price)
+- [ ] Vector DB market fluency: Pinecone / Qdrant / Weaviate / Chroma / pgvector — categorize by hosted vs embedded vs "your existing Postgres"
+- Resources: [Generative AI playlist](https://youtube.com/playlist?list=PLKnIA16_RmvaTbihpo4MtzVm4XOQa0ER0), [Agentic AI playlist](https://youtube.com/playlist?list=PLKnIA16_RmvYsvB8qkUQuJmJNuiCUJFPL)
 
 ### Paper reproduction targets `2026 goal`
 
